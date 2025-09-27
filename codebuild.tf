@@ -1,5 +1,5 @@
-resource "aws_codebuild_project" "docker_build" {
-  name          = "fcg-docker-build"
+resource "aws_codebuild_project" "fcg_ci" {
+  name          = var.fcg_ci_project_name
   service_role  = aws_iam_role.codebuild_role.arn
   build_timeout = 30
 
@@ -11,17 +11,32 @@ resource "aws_codebuild_project" "docker_build" {
 
   environment {
     compute_type    = "BUILD_GENERAL1_SMALL"
-    image           = "aws/codebuild/standard:7.0"
+    image           = "mcr.microsoft.com/dotnet/sdk:9.0"
     type            = "LINUX_CONTAINER"
     privileged_mode = true
 
     environment_variable {
-      name  = "ECR_REPO_URI"
+      name  = "ECR_REPOSITORY_URI"
       value = aws_ecr_repository.fcg.repository_url
+    }
+
+    environment_variable {
+      name  = "ECR_REPOSITORY_DOMAIN"
+      value = split("/", aws_ecr_repository.fcg.repository_url)[0]
     }
   }
 
   artifacts {
-    type = "NO_ARTIFACTS"
+    type = "S3"
+    location = aws_s3_bucket.artifacts_bucket.bucket
+    packaging = "ZIP"
+    path = "artifacts/"
+    artifact_identifier = "fcg-artifacts"
+    encryption_disabled = false
   }
+
+  depends_on = [
+    aws_ecr_repository.fcg,
+    aws_s3_bucket.artifacts_bucket
+  ]
 }
