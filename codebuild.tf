@@ -16,6 +16,11 @@ resource "aws_codebuild_project" "fcg_ci" {
     privileged_mode = true
 
     environment_variable {
+      name  = "AWS_REGION"
+      value = var.aws_region
+    }
+
+    environment_variable {
       name  = "ECR_REPOSITORY_URI"
       value = aws_ecr_repository.fcg.repository_url
     }
