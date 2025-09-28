@@ -2,16 +2,13 @@
 
 Este repositório contém a infraestrutura como código (IaC) para provisionamento de recursos AWS utilizando Terraform, incluindo OpenSearch, IAM, ECR, S3 e CodeBuild.
 
-## Estrutura dos Arquivos
+## Arquitetura
+Esta arquitetura utiliza um **API Gateway** para integrar os microsserviços de **Jogos**, **Catálogos** e **Pagamentos**, além do **Keycloak** para autenticação. Cada microsserviço acessa seu próprio índice no **OpenSearch**. O microsserviço de Catálogos dispara uma função **Lambda** que usa **SES** para envio de e-mails. O microsserviço de Pagamentos processa ordens de forma assíncrona via mensageria.
 
-- `main.tf`: Configuração do provider AWS.
-- `variables.tf`: Definição de variáveis utilizadas no projeto.
-- `iam.tf`: Recursos relacionados a usuários, grupos e permissões IAM, incluindo permissões para CodeBuild acessar o bucket S3.
-- `opensearch.tf`: Provisionamento do domínio OpenSearch e permissões de acesso.
-- `ecr.tf`: Provisionamento do repositório ECR.
-- `s3.tf`: Provisionamento do bucket S3 para armazenar artefatos do CodeBuild.
-- `codebuild.tf`: Provisionamento do projeto CodeBuild, configurado para salvar artefatos no bucket S3.
-- `terraform.tfstate`, `terraform.tfstate.backup`: Arquivos de estado do Terraform.
+O diagrama abaixo ilustra a arquitetura descrita:
+
+![Diagrama de Arquitetura](fcg-architecture-microservices-diagram.drawio.png)
+
 
 ## Pré-requisitos
 
@@ -36,6 +33,17 @@ Este repositório contém a infraestrutura como código (IaC) para provisionamen
    ```powershell
    terraform destroy
    ```
+
+## Estrutura dos Arquivos
+
+- `main.tf`: Configuração do provider AWS.
+- `variables.tf`: Definição de variáveis utilizadas no projeto.
+- `iam.tf`: Recursos relacionados a usuários, grupos e permissões IAM, incluindo permissões para CodeBuild acessar o bucket S3.
+- `opensearch.tf`: Provisionamento do domínio OpenSearch e permissões de acesso.
+- `ecr.tf`: Provisionamento do repositório ECR.
+- `s3.tf`: Provisionamento do bucket S3 para armazenar artefatos do CodeBuild.
+- `codebuild.tf`: Provisionamento do projeto CodeBuild, configurado para salvar artefatos no bucket S3.
+- `terraform.tfstate`, `terraform.tfstate.backup`: Arquivos de estado do Terraform.
 
 ## Variáveis principais
 
