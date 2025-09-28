@@ -5,10 +5,16 @@ Este repositório contém a infraestrutura como código (IaC) para provisionamen
 ## Arquitetura
 Esta arquitetura utiliza um **API Gateway** para integrar os microsserviços de **Jogos**, **Catálogos** e **Pagamentos**, além do **Keycloak** para autenticação. Cada microsserviço acessa seu próprio índice no **OpenSearch**. O microsserviço de Catálogos dispara uma função **Lambda** que usa **SES** para envio de e-mails. O microsserviço de Pagamentos processa ordens de forma assíncrona via mensageria.
 
+
 O diagrama abaixo ilustra a arquitetura descrita:
 
 ![Diagrama de Arquitetura](fcg-architecture-microservices-diagram.drawio.png)
 
+### Repositórios dos Microsserviços
+
+- **Jogos:** [fcg-games-microservice](https://github.com/PauloBusch/fcg-games-microservice)
+- **Pagamentos:** [fcg-payment-service](https://github.com/M4theusVieir4/fcg-payment-service)
+- **Catálogos:** [tech-challenge-net-phase-3](https://github.com/marceloalvees/tech-challenge-net-phase-3)
 
 ## Pré-requisitos
 
@@ -34,18 +40,21 @@ O diagrama abaixo ilustra a arquitetura descrita:
    terraform destroy
    ```
 
+
 ## Estrutura dos Arquivos
 
-- `main.tf`: Configuração do provider AWS.
-- `variables.tf`: Definição de variáveis utilizadas no projeto.
-- `iam.tf`: Recursos relacionados a usuários, grupos e permissões IAM, incluindo permissões para CodeBuild acessar o bucket S3.
-- `opensearch.tf`: Provisionamento do domínio OpenSearch e permissões de acesso.
-- `ecr.tf`: Provisionamento do repositório ECR.
-- `s3.tf`: Provisionamento do bucket S3 para armazenar artefatos do CodeBuild.
-- `codebuild.tf`: Provisionamento do projeto CodeBuild, configurado para salvar artefatos no bucket S3.
+- [`main.tf`](main.tf): Configuração do provider AWS.
+- [`variables.tf`](variables.tf): Definição de variáveis utilizadas no projeto.
+- [`iam.tf`](iam.tf): Recursos relacionados a usuários, grupos e permissões IAM, incluindo permissões para CodeBuild acessar o bucket S3.
+- [`opensearch.tf`](opensearch.tf): Provisionamento do domínio OpenSearch e permissões de acesso.
+- [`ecr.tf`](ecr.tf): Provisionamento do repositório ECR.
+- [`s3.tf`](s3.tf): Provisionamento do bucket S3 para armazenar artefatos do CodeBuild.
+- [`codebuild.tf`](codebuild.tf): Provisionamento do projeto CodeBuild, configurado para salvar artefatos no bucket S3.
 - `terraform.tfstate`, `terraform.tfstate.backup`: Arquivos de estado do Terraform.
 
 ## Variáveis principais
+
+As variáveis principais estão definidas em [`variables.tf`](variables.tf):
 
 - `aws_region`: Região AWS (padrão: us-east-2)
 - `users`: Lista de usuários IAM para OpenSearch
