@@ -19,6 +19,11 @@ variable "opensearch_domain" {
 }
 
 # TODO: Refactor - One per microsservice
+variable "opensearch_user" {
+  type    = string
+  default = "fcg-games"
+}
+
 variable "github_user" {
   type = string
   default = "PauloBusch"

@@ -29,6 +29,21 @@ resource "aws_codebuild_project" "fcg_ci" {
       name  = "ECR_REPOSITORY_DOMAIN"
       value = split("/", aws_ecr_repository.fcg.repository_url)[0]
     }
+
+    environment_variable {
+      name  = "ELASTICSEARCHSETTINGS_ENDPOINT"
+      value = aws_opensearch_domain.fcg.endpoint
+    }
+
+    environment_variable {
+      name  = "ELASTICSEARCHSETTINGS_ACCESSKEY"
+      value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].id
+    }
+
+    environment_variable {
+      name  = "ELASTICSEARCHSETTINGS_SECRET"
+      value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].secret
+    }
   }
 
   artifacts {
