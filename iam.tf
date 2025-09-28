@@ -45,6 +45,7 @@ resource "aws_iam_role_policy_attachment" "codebuild_policy_attach" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
 
+# CodeBuild policies
 resource "aws_iam_role_policy" "codebuild_s3_access" {
   name = "codebuild-s3-access"
   role = aws_iam_role.codebuild_role.id
@@ -67,3 +68,28 @@ resource "aws_iam_role_policy" "codebuild_s3_access" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "codebuild_logs_policy" {
+  name = "codebuild-logs-policy"
+  role = aws_iam_role.codebuild_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.fcg_ci_project_name}",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.fcg_ci_project_name}:*"
+        ]
+      }
+    ]
+  })
+}
+
+data "aws_caller_identity" "current" {}
