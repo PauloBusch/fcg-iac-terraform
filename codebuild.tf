@@ -31,18 +31,23 @@ resource "aws_codebuild_project" "fcg_ci" {
     }
 
     environment_variable {
-      name  = "ELASTICSEARCHSETTINGS_ENDPOINT"
-      value = aws_opensearch_domain.fcg.endpoint
+      name  = "ElasticSearchSettings__Endpoint"
+      value = "https://${aws_opensearch_domain.fcg.endpoint}"
     }
 
     environment_variable {
-      name  = "ELASTICSEARCHSETTINGS_ACCESSKEY"
+      name  = "ElasticSearchSettings__AccessKey"
       value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].id
     }
 
     environment_variable {
-      name  = "ELASTICSEARCHSETTINGS_SECRET"
+      name  = "ElasticSearchSettings__Secret"
       value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].secret
+    }
+
+    environment_variable {
+      name  = "ElasticSearchSettings__Region"
+      value = var.aws_region
     }
   }
 

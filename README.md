@@ -8,7 +8,7 @@ Esta arquitetura utiliza um **API Gateway** para integrar os microsserviços de 
 
 O diagrama abaixo ilustra a arquitetura descrita:
 
-![Diagrama de Arquitetura](fcg-architecture-microservices-diagram.drawio.png)
+![Diagrama de Arquitetura](docs/fcg-architecture-microservices-diagram.drawio.png)
 
 ### Repositórios dos Microsserviços
 
