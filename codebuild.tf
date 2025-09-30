@@ -11,7 +11,7 @@ resource "aws_codebuild_project" "fcg_ci" {
 
   environment {
     compute_type    = "BUILD_GENERAL1_SMALL"
-    image           = "mcr.microsoft.com/dotnet/sdk:9.0"
+    image           = "aws/codebuild/standard:7.0"
     type            = "LINUX_CONTAINER"
     privileged_mode = true
 

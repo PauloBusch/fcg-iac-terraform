@@ -13,7 +13,7 @@ resource "aws_ecs_task_definition" "fcg_task" {
   container_definitions = jsonencode([
     {
       name      = var.ecs_container_name
-      image     = aws_ecr_repository.fcg.repository_url
+      image     = "${aws_ecr_repository.fcg.repository_url}:latest"
       essential = true
       portMappings = [
         {
@@ -23,20 +23,20 @@ resource "aws_ecs_task_definition" "fcg_task" {
       ]
       environment = [
         {
-            name  = "ElasticSearchSettings__Endpoint"
-            value = "https://${aws_opensearch_domain.fcg.endpoint}"
+          name  = "ElasticSearchSettings__Endpoint"
+          value = "https://${aws_opensearch_domain.fcg.endpoint}"
         },
         {
-            name  = "ElasticSearchSettings__AccessKey"
-            value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].id
+          name  = "ElasticSearchSettings__AccessKey"
+          value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].id
         },
         {
-            name  = "ElasticSearchSettings__Secret"
-            value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].secret
+          name  = "ElasticSearchSettings__Secret"
+          value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].secret
         },
         {
-            name  = "ElasticSearchSettings__Region"
-            value = var.aws_region
+          name  = "ElasticSearchSettings__Region"
+          value = var.aws_region
         }
       ]
     },
@@ -45,29 +45,29 @@ resource "aws_ecs_task_definition" "fcg_task" {
         image     = "grafana/grafana:latest"
         essential = false
         portMappings = [
-            {
-                containerPort = 3000
-                hostPort      = 3000
-            }
+          {
+            containerPort = 3000
+            hostPort      = 3000
+          }
         ]
         environment = [
-            {
-                name  = "GF_SECURITY_ADMIN_PASSWORD"
-                value = var.grafana_admin_password
-            }
+          {
+            name  = "GF_SECURITY_ADMIN_PASSWORD"
+            value = var.grafana_admin_password
+          }
         ]
     },
     {
-        name      = "prometheus"
-        image     = "prom/prometheus:latest"
-        essential = false
-        portMappings = [
-            {
-                containerPort = 9090
-                hostPort      = 9090
-            }
-        ]
-        environment = []
+      name      = "prometheus"
+      image     = "prom/prometheus:latest"
+      essential = false
+      portMappings = [
+        {
+          containerPort = 9090
+          hostPort      = 9090
+        }
+      ]
+      environment = []
     }
   ])
 }
@@ -100,7 +100,7 @@ resource "aws_ecs_service" "fcg_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = [aws_subnet.private.id]
+    subnets          = [aws_subnet.public.id]
     security_groups  = [aws_security_group.ecs_service_sg.id]
     assign_public_ip = true
   }
