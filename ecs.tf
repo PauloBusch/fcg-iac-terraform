@@ -2,12 +2,12 @@ resource "aws_ecs_cluster" "fcg_cluster" {
   name = var.ecs_cluster_name
 }
 
-resource "aws_ecs_task_definition" "fcg_task" {
-  family                   = "fcg-task"
+resource "aws_ecs_task_definition" "fcg_ecs_task" {
+  family                   = "fcg-ecs-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
+  cpu                      = var.ecs_task_cpu
+  memory                   = var.ecs_task_memory
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode(
@@ -20,7 +20,7 @@ resource "aws_ecs_task_definition" "fcg_task" {
           portMappings = [
             {
               containerPort = ms.ecs_container_port
-              hostPort      = ms.ecs_host_port
+              hostPort      = ms.ecs_container_port
             }
           ]
           environment = concat(
@@ -43,8 +43,7 @@ resource "aws_ecs_task_definition" "fcg_task" {
               }
             ],
             (
-              lookup(ms, "sqs_user", null) != null && trim(ms.sqs_user, " ") != "" &&
-              lookup(ms, "sqs_queue_name", null) != null && trim(ms.sqs_queue_name, " ") != ""
+              contains(keys(aws_sqs_queue.fcg_sqs), ms.key)
             ) ? [
               {
                 name  = "AWS__SQS__PaymentsQueueUrl"
@@ -127,7 +126,7 @@ resource "aws_security_group" "ecs_service_sg" {
 resource "aws_ecs_service" "fcg_service" {
   name            = "fcg-service"
   cluster         = aws_ecs_cluster.fcg_cluster.id
-  task_definition = aws_ecs_task_definition.fcg_task.arn
+  task_definition = aws_ecs_task_definition.fcg_ecs_task.arn
   desired_count   = 1
   launch_type     = "FARGATE"
 

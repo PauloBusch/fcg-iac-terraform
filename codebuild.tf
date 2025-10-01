@@ -53,25 +53,24 @@ resource "aws_codebuild_project" "fcg_ci" {
 
     dynamic "environment_variable" {
       for_each = (
-        lookup(each.value, "sqs_user", null) != null && trim(each.value.sqs_user, " ") != "" &&
-        lookup(each.value, "sqs_queue_name", null) != null && trim(each.value.sqs_queue_name, " ") != ""
+        contains(keys(aws_sqs_queue.fcg_sqs), each.key)
       ) ? [
-        {
-          name  = "AWS__SQS__PaymentsQueueUrl"
-          value = aws_sqs_queue.fcg_sqs[each.key].url
-        },
-        {
-          name  = "AWS__SQS__Region"
-          value = var.aws_region
-        },
-        {
-          name  = "AWS__SQS__AccessKey"
-          value = aws_iam_access_key.sqs_users_access_key[each.key].id
-        },
-        {
-          name  = "AWS__SQS__SecretKey"
-          value = aws_iam_access_key.sqs_users_access_key[each.key].secret
-        }
+      {
+        name  = "AWS__SQS__PaymentsQueueUrl"
+        value = aws_sqs_queue.fcg_sqs[each.key].url
+      },
+      {
+        name  = "AWS__SQS__Region"
+        value = var.aws_region
+      },
+      {
+        name  = "AWS__SQS__AccessKey"
+        value = aws_iam_access_key.sqs_users_access_key[each.key].id
+      },
+      {
+        name  = "AWS__SQS__SecretKey"
+        value = aws_iam_access_key.sqs_users_access_key[each.key].secret
+      }
       ] : []
 
       content {

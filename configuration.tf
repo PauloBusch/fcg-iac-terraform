@@ -9,9 +9,6 @@ variable "microservices_config" {
     ecs_container_name   = string
     s3_bucket_name       = string
     ecs_container_port   = number
-    ecs_host_port        = number
-    sqs_user             = optional(string)
-    sqs_queue_name       = optional(string)
   }))
   default = [
     {
@@ -24,7 +21,6 @@ variable "microservices_config" {
       ecs_container_name   = "fcg-ecs-games-container"
       s3_bucket_name       = "fcg-s3-games-bucket-6584"
       ecs_container_port   = 8080
-      ecs_host_port        = 8080
     },
     {
       key                  = "payments"
@@ -35,10 +31,7 @@ variable "microservices_config" {
       ecr_repository_name  = "fcg-ecr-payments-repository"
       ecs_container_name   = "fcg-ecs-payments-container"
       s3_bucket_name       = "fcg-s3-payments-bucket-8865"
-      sqs_user             = "fcg-payments-sqs-user"
-      sqs_queue_name       = "fcg-payments-queue.fifo"
-      ecs_container_port   = 8080
-      ecs_host_port        = 8081
+      ecs_container_port   = 8081
     },
     {
       key                  = "catalogs"
@@ -49,8 +42,22 @@ variable "microservices_config" {
       ecr_repository_name  = "fcg-ecr-catalogs-repository"
       ecs_container_name   = "fcg-ecs-catalogs-container"
       s3_bucket_name       = "fcg-s3-catalogs-bucket"
-      ecs_container_port   = 8080
-      ecs_host_port        = 8082
+      ecs_container_port   = 8082
+    }
+  ]
+}
+
+variable "microservices_sqs_config" {
+  type = list(object({
+    key           = string
+    sqs_user      = string
+    sqs_queue_name = string
+  }))
+  default = [
+    {
+      key            = "payments"
+      sqs_user       = "fcg-payments-sqs-user"
+      sqs_queue_name = "fcg-payments-queue.fifo"
     }
   ]
 }

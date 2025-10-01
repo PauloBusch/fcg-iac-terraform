@@ -119,18 +119,8 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 }
 
 # SQS users
-locals {
-  sqs_users = {
-    for ms in var.microservices_config : ms.key => ms
-    if (
-      lookup(ms, "sqs_user", null) != null && trim(ms.sqs_user, " ") != "" &&
-      lookup(ms, "sqs_queue_name", null) != null && trim(ms.sqs_queue_name, " ") != ""
-    )
-  }
-}
-
 resource "aws_iam_user" "sqs_users" {
-  for_each = local.sqs_users
+  for_each    = { for ms in var.microservices_sqs_config : ms.key => ms }
   name     = each.value.sqs_user
 }
 

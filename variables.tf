@@ -13,6 +13,16 @@ variable "ecs_cluster_name" {
   default = "fcg-ecs-cluster"
 }
 
+variable "ecs_task_cpu" {
+  type    = string
+  default = "1024"
+}
+
+variable "ecs_task_memory" {
+  type    = string
+  default = "2048"
+}
+
 variable "grafana_admin_password" {
   type    = string
   default = "Admin123$"
