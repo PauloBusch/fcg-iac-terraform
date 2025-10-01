@@ -10,8 +10,8 @@ resource "aws_iam_group_policy_attachment" "opensearch_access_group_policy" {
 
 # OpenSearch users
 resource "aws_iam_user" "opensearch_users" {
-  for_each = toset(var.users)
-  name     = each.key
+  for_each      = { for ms in var.microservices_config : ms.key => ms }
+  name     = each.value.opensearch_user
 }
 
 resource "aws_iam_user_group_membership" "opensearch_user_group_membership" {
@@ -60,10 +60,12 @@ resource "aws_iam_role_policy" "codebuild_s3_access" {
           "s3:GetObject",
           "s3:ListBucket"
         ]
-        Resource = [
-          aws_s3_bucket.artifacts_bucket.arn,
-          "${aws_s3_bucket.artifacts_bucket.arn}/*"
-        ]
+        Resource = flatten([
+          for ms in var.microservices_config : [
+            aws_s3_bucket.s3_bucket[ms.key].arn,
+            "${aws_s3_bucket.s3_bucket[ms.key].arn}/*"
+          ]
+        ])
       }
     ]
   })
@@ -83,10 +85,12 @@ resource "aws_iam_role_policy" "codebuild_logs_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ],
-        Resource = [
-          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.fcg_ci_project_name}",
-          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${var.fcg_ci_project_name}:*"
-        ]
+        Resource = flatten([
+          for ms in var.microservices_config : [
+            "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${ms.fcg_ci_project_name}",
+            "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${ms.fcg_ci_project_name}:*"
+          ]
+        ])
       }
     ]
   })
@@ -112,4 +116,52 @@ resource "aws_iam_role" "ecs_task_execution_role" {
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# SQS users
+locals {
+  sqs_users = {
+    for ms in var.microservices_config : ms.key => ms
+    if (
+      lookup(ms, "sqs_user", null) != null && trim(ms.sqs_user, " ") != "" &&
+      lookup(ms, "sqs_queue_name", null) != null && trim(ms.sqs_queue_name, " ") != ""
+    )
+  }
+}
+
+resource "aws_iam_user" "sqs_users" {
+  for_each = local.sqs_users
+  name     = each.value.sqs_user
+}
+
+resource "aws_iam_access_key" "sqs_users_access_key" {
+  for_each = aws_iam_user.sqs_users
+  user     = each.value.name
+}
+
+resource "aws_iam_user_policy" "sqs_users_policy" {
+  for_each = aws_iam_user.sqs_users
+  name     = "sqs-access-policy"
+  user     = each.value.name
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl",
+          "sqs:ListQueues",
+          "sqs:DeleteMessage"
+        ],
+        Resource = [
+          aws_sqs_queue.fcg_sqs[each.key].arn,
+          "${aws_sqs_queue.fcg_sqs[each.key].arn}/*"
+        ]
+      }
+    ]
+  })
 }

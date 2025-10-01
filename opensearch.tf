@@ -29,7 +29,7 @@ POLICY
 }
 
 data "aws_iam_user" "opensearch_users" {
-  for_each = toset(var.users)
+  for_each = toset([for ms in var.microservices_config : ms.opensearch_user])
   user_name = each.key
 
   depends_on = [

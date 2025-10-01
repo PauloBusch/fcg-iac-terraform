@@ -1,11 +1,12 @@
 resource "aws_codebuild_project" "fcg_ci" {
-  name          = var.fcg_ci_project_name
+  name          = each.value.fcg_ci_project_name
+  for_each      = { for ms in var.microservices_config : ms.key => ms }
   service_role  = aws_iam_role.codebuild_role.arn
   build_timeout = 30
 
   source {
     type      = "GITHUB"
-    location  = "https://github.com/${var.github_user}/${var.github_repo}.git"
+    location  = "https://github.com/${each.value.github_user}/${each.value.github_repository}.git"
     buildspec = "ci-pipeline.yml"
   }
 
@@ -22,12 +23,12 @@ resource "aws_codebuild_project" "fcg_ci" {
 
     environment_variable {
       name  = "ECR_REPOSITORY_URI"
-      value = aws_ecr_repository.fcg.repository_url
+      value = aws_ecr_repository.fcg_ecr[each.key].repository_url
     }
 
     environment_variable {
       name  = "ECR_REPOSITORY_DOMAIN"
-      value = split("/", aws_ecr_repository.fcg.repository_url)[0]
+      value = split("/", aws_ecr_repository.fcg_ecr[each.key].repository_url)[0]
     }
 
     environment_variable {
@@ -37,23 +38,52 @@ resource "aws_codebuild_project" "fcg_ci" {
 
     environment_variable {
       name  = "ElasticSearchSettings__AccessKey"
-      value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].id
+      value = aws_iam_access_key.opensearch_users_access_key[each.key].id
     }
 
     environment_variable {
       name  = "ElasticSearchSettings__Secret"
-      value = aws_iam_access_key.opensearch_users_access_key[var.opensearch_user].secret
+      value = aws_iam_access_key.opensearch_users_access_key[each.key].secret
     }
 
     environment_variable {
       name  = "ElasticSearchSettings__Region"
       value = var.aws_region
     }
+
+    dynamic "environment_variable" {
+      for_each = (
+        lookup(each.value, "sqs_user", null) != null && trim(each.value.sqs_user, " ") != "" &&
+        lookup(each.value, "sqs_queue_name", null) != null && trim(each.value.sqs_queue_name, " ") != ""
+      ) ? [
+        {
+          name  = "AWS__SQS__PaymentsQueueUrl"
+          value = aws_sqs_queue.fcg_sqs[each.key].url
+        },
+        {
+          name  = "AWS__SQS__Region"
+          value = var.aws_region
+        },
+        {
+          name  = "AWS__SQS__AccessKey"
+          value = aws_iam_access_key.sqs_users_access_key[each.key].id
+        },
+        {
+          name  = "AWS__SQS__SecretKey"
+          value = aws_iam_access_key.sqs_users_access_key[each.key].secret
+        }
+      ] : []
+
+      content {
+        name  = environment_variable.value.name
+        value = environment_variable.value.value
+      }
+    }
   }
 
   artifacts {
     type = "S3"
-    location = aws_s3_bucket.artifacts_bucket.bucket
+    location = aws_s3_bucket.s3_bucket[each.key].bucket
     packaging = "ZIP"
     path = "artifacts/"
     artifact_identifier = "fcg-artifacts"
@@ -61,7 +91,7 @@ resource "aws_codebuild_project" "fcg_ci" {
   }
 
   depends_on = [
-    aws_ecr_repository.fcg,
-    aws_s3_bucket.artifacts_bucket
+    aws_ecr_repository.fcg_ecr,
+    aws_s3_bucket.s3_bucket
   ]
 }
