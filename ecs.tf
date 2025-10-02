@@ -9,6 +9,7 @@ resource "aws_ecs_task_definition" "fcg_ecs_task" {
   cpu                      = var.ecs_task_cpu
   memory                   = var.ecs_task_memory
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_execution_role.arn
 
   container_definitions = jsonencode(
     concat(
@@ -16,6 +17,8 @@ resource "aws_ecs_task_definition" "fcg_ecs_task" {
         for ms in var.microservices_config : {
           name      = ms.ecs_container_name
           image     = "${aws_ecr_repository.fcg_ecr[ms.key].repository_url}:latest"
+          cpu       = 256
+          memory    = 512
           essential = true
           portMappings = [
             {
@@ -23,6 +26,13 @@ resource "aws_ecs_task_definition" "fcg_ecs_task" {
               hostPort      = ms.ecs_container_port
             }
           ]
+          healthCheck = {
+            command     = ["CMD-SHELL", "curl -f http://localhost:${ms.ecs_container_port}/health || exit 1"]
+            interval    = 30
+            timeout     = 5
+            retries     = 3
+            startPeriod = 10
+          }
           environment = concat(
             [
               {
@@ -67,33 +77,50 @@ resource "aws_ecs_task_definition" "fcg_ecs_task" {
       ],
       [
         {
-          name      = "grafana"
-          image     = "grafana/grafana:latest"
-          essential = false
-          portMappings = [
-            {
-              containerPort = 3000
-              hostPort      = 3000
-            }
-          ]
-          environment = [
-            {
-              name  = "GF_SECURITY_ADMIN_PASSWORD"
-              value = var.grafana_admin_password
-            }
-          ]
-        },
-        {
           name      = "prometheus"
           image     = "prom/prometheus:latest"
           essential = false
+          cpu       = 256
+          memory    = 512
           portMappings = [
             {
               containerPort = 9090
               hostPort      = 9090
             }
           ]
-          environment = []
+          healthCheck = {
+            command     = ["CMD-SHELL", "curl -f http://localhost:9090/-/healthy || exit 1"]
+            interval    = 30
+            timeout     = 5
+            retries     = 3
+            startPeriod = 10
+          }
+        },
+        {
+          name      = "grafana"
+          image     = "grafana/grafana:latest"
+          essential = false
+          cpu       = 256
+          memory    = 512
+          portMappings = [
+            {
+              containerPort = 3000
+              hostPort      = 3000
+            }
+          ]
+          healthCheck = {
+            command     = ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+            interval    = 30
+            timeout     = 5
+            retries     = 3
+            startPeriod = 10
+          }
+          environment = [
+            {
+              name  = "GF_SECURITY_ADMIN_PASSWORD"
+              value = var.grafana_admin_password
+            }
+          ]
         }
       ]
     )
@@ -115,6 +142,20 @@ resource "aws_security_group" "ecs_service_sg" {
     }
   }
 
+  ingress {
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -129,6 +170,7 @@ resource "aws_ecs_service" "fcg_service" {
   task_definition = aws_ecs_task_definition.fcg_ecs_task.arn
   desired_count   = 1
   launch_type     = "FARGATE"
+  enable_execute_command = var.ecs_enable_remote_cmd
 
   network_configuration {
     subnets          = [aws_subnet.public.id]
