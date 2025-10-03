@@ -50,6 +50,10 @@ resource "aws_ecs_task_definition" "fcg_ecs_task" {
               {
                 name  = "ElasticSearchSettings__Region"
                 value = var.aws_region
+              },
+              {
+                name  = "ASPNETCORE_HTTP_PORTS"
+                value = tostring(ms.ecs_container_port)
               }
             ],
             (

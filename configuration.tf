@@ -11,28 +11,28 @@ variable "microservices_config" {
     ecs_container_port   = number
   }))
   default = [
-    {
-      key                  = "games"
-      opensearch_user      = "fcg-games-opensearch-user"
-      github_user          = "PauloBusch"
-      github_repository    = "fcg-games-microservice"
-      fcg_ci_project_name  = "fcg-games-ci"
-      ecr_repository_name  = "fcg-ecr-games-repository"
-      ecs_container_name   = "fcg-ecs-games-container"
-      s3_bucket_name       = "fcg-s3-games-bucket-6584"
-      ecs_container_port   = 8080
-    },
-    {
-      key                  = "payments"
-      opensearch_user      = "fcg-payments-opensearch-user"
-      github_user          = "M4theusVieir4"
-      github_repository    = "fcg-payment-service"
-      fcg_ci_project_name  = "fcg-payments-ci"
-      ecr_repository_name  = "fcg-ecr-payments-repository"
-      ecs_container_name   = "fcg-ecs-payments-container"
-      s3_bucket_name       = "fcg-s3-payments-bucket-8865"
-      ecs_container_port   = 8081
-    },
+    # {
+    #   key                  = "games"
+    #   opensearch_user      = "fcg-games-opensearch-user"
+    #   github_user          = "PauloBusch"
+    #   github_repository    = "fcg-games-microservice"
+    #   fcg_ci_project_name  = "fcg-games-ci"
+    #   ecr_repository_name  = "fcg-ecr-games-repository"
+    #   ecs_container_name   = "fcg-ecs-games-container"
+    #   s3_bucket_name       = "fcg-s3-games-bucket-6584"
+    #   ecs_container_port   = 8080
+    # },
+    # {
+    #   key                  = "payments"
+    #   opensearch_user      = "fcg-payments-opensearch-user"
+    #   github_user          = "M4theusVieir4"
+    #   github_repository    = "fcg-payment-service"
+    #   fcg_ci_project_name  = "fcg-payments-ci"
+    #   ecr_repository_name  = "fcg-ecr-payments-repository"
+    #   ecs_container_name   = "fcg-ecs-payments-container"
+    #   s3_bucket_name       = "fcg-s3-payments-bucket-8865"
+    #   ecs_container_port   = 8081
+    # },
     {
       key                  = "catalogs"
       opensearch_user      = "fcg-catalogs-opensearch-user"
