@@ -15,7 +15,7 @@ O diagrama abaixo ilustra a arquitetura descrita:
 
 - **Jogos:** [fcg-games-microservice](https://github.com/PauloBusch/fcg-games-microservice)
 - **Pagamentos:** [fcg-payment-service](https://github.com/M4theusVieir4/fcg-payment-service)
-- **Catálogos:** [tech-challenge-net-phase-3](https://github.com/marceloalvees/tech-challenge-net-phase-3)
+- **Catálogos:** [fcg-catalog-microservice](https://github.com/marceloalvees/fcg-catalog-microservice)
 
 
 ## Pré-requisitos
@@ -83,10 +83,6 @@ As configurações dinâmicas dos microsserviços estão definidas em [`configur
             opensearch_user      = "fcg-catalogs-opensearch-user"
             github_user          = "marceloalvees"
             github_repository    = "tech-challenge-net-phase-3"
-            fcg_ci_project_name  = "fcg-catalogs-ci"
-            ecr_repository_name  = "fcg-ecr-catalogs-repository"
-            ecs_container_name   = "fcg-ecs-catalogs-container"
-            s3_bucket_name       = "fcg-s3-catalogs-bucket"
             ecs_container_port   = 8082
          }
       ]

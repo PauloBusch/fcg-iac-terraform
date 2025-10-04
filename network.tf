@@ -8,10 +8,9 @@ resource "aws_vpc" "main" {
     Name = "fcg-vpc"
   }
 }
-
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block = "10.0.1.0/24"
+  cidr_block              = "10.0.10.0/24"
   map_public_ip_on_launch = true
 
   tags = {
@@ -23,7 +22,7 @@ data "aws_availability_zones" "available" {}
 
 resource "aws_subnet" "public_a" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.2.0/24"
+  cidr_block              = "10.0.11.0/24"
   availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = true
   tags = {
@@ -33,7 +32,7 @@ resource "aws_subnet" "public_a" {
 
 resource "aws_subnet" "public_b" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.3.0/24"
+  cidr_block              = "10.0.12.0/24"
   availability_zone       = data.aws_availability_zones.available.names[1]
   map_public_ip_on_launch = true
   tags = {
@@ -65,12 +64,7 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public_a.id
-  route_table_id = aws_route_table.public.id
-}
-
-resource "aws_route_table_association" "public_b" {
-  subnet_id      = aws_subnet.public_b.id
+  subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public.id
 }
 
@@ -101,7 +95,7 @@ resource "aws_lb" "fcg_alb" {
   internal           = false
   load_balancer_type = "application"
   subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
-  security_groups    = [aws_security_group.ecs_service_sg.id]
+  security_groups    = [aws_security_group.allow_all.id]
 }
 
 output "alb_dns_name" {

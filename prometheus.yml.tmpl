@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'ecs-tasks'
+    ecs_sd_configs:
+      - region: "${region}"
+        cluster: "${cluster_name}"
+    relabel_configs:
+      - source_labels: [__meta_ecs_task_definition_family]
+        regex: 'fcg-ecs-task-(.*)'
+        action: keep
+      - source_labels: [__meta_ecs_container_port]
+        action: replace
+        target_label: 'port'

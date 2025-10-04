@@ -25,7 +25,7 @@ resource "aws_iam_access_key" "opensearch_users_access_key" {
   user     = each.value.name
 }
 
-# CodeBuild role
+# CodeBuild
 resource "aws_iam_role" "codebuild_role" {
   name = "codebuild-role"
   assume_role_policy = jsonencode({
@@ -45,7 +45,6 @@ resource "aws_iam_role_policy_attachment" "codebuild_policy_attach" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
 
-# CodeBuild policies
 resource "aws_iam_role_policy" "codebuild_s3_access" {
   name = "codebuild-s3-access"
   role = aws_iam_role.codebuild_role.id
@@ -87,8 +86,8 @@ resource "aws_iam_role_policy" "codebuild_logs_policy" {
         ],
         Resource = flatten([
           for ms in var.microservices_config : [
-            "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${ms.fcg_ci_project_name}",
-            "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/${ms.fcg_ci_project_name}:*"
+            "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/fcg-ci-${ms.key}",
+            "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/codebuild/fcg-ci-${ms.key}:*"
           ]
         ])
       }
@@ -98,7 +97,127 @@ resource "aws_iam_role_policy" "codebuild_logs_policy" {
 
 data "aws_caller_identity" "current" {}
 
-# ECS role
+# CodePipeline
+resource "aws_iam_role" "codepipeline_role" {
+  name = "fcg-codepipeline-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "codepipeline.amazonaws.com" }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "codepipeline_policy" {
+  role       = aws_iam_role.codepipeline_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "codepipeline_codestar_policy" {
+  role       = aws_iam_role.codepipeline_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodeStarFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "codepipeline_ecs_full_access" {
+  role       = aws_iam_role.codepipeline_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+}
+
+resource "aws_codestarconnections_connection" "github_connection" {
+  name          = "github-connection"
+  provider_type = "GitHub"
+}
+
+resource "aws_iam_role_policy" "codepipeline_codestar_inline" {
+  name = "CodePipelineCodeStarConnectionInline"
+  role = aws_iam_role.codepipeline_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "codestar-connections:UseConnection"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "codepipeline_s3_access" {
+  name = "codepipeline-s3-access"
+  role = aws_iam_role.codepipeline_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = flatten([
+          for ms in var.microservices_config : [
+            aws_s3_bucket.s3_bucket[ms.key].arn,
+            "${aws_s3_bucket.s3_bucket[ms.key].arn}/*"
+          ]
+        ])
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "codepipeline_codebuild_access" {
+  name = "codepipeline-codebuild-access"
+  role = aws_iam_role.codepipeline_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "codebuild:StartBuild",
+          "codebuild:BatchGetBuilds",
+          "codebuild:BatchGetProjects"
+        ]
+        Resource = [
+          for ms in var.microservices_config : aws_codebuild_project.fcg_ci[ms.key].arn
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "codepipeline_ecs_access" {
+  name = "codepipeline-ecs-access"
+  role = aws_iam_role.codepipeline_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:DescribeServices",
+          "ecs:DescribeTaskDefinition",
+          "ecs:DescribeTasks",
+          "ecs:ListTasks",
+          "ecs:RegisterTaskDefinition",
+          "ecs:UpdateService"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# ECS
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "ecsTaskExecutionRole"
   assume_role_policy = jsonencode({
@@ -128,7 +247,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# SQS users
+# SQS
 resource "aws_iam_user" "sqs_users" {
   for_each    = { for ms in var.microservices_sqs_config : ms.key => ms }
   name     = each.value.sqs_user

@@ -1,5 +1,5 @@
 resource "aws_codebuild_project" "fcg_ci" {
-  name          = each.value.fcg_ci_project_name
+  name          = "fcg-ci-${each.key}"
   for_each      = { for ms in var.microservices_config : ms.key => ms }
   service_role  = aws_iam_role.codebuild_role.arn
   build_timeout = 30
@@ -19,6 +19,11 @@ resource "aws_codebuild_project" "fcg_ci" {
     environment_variable {
       name  = "AWS_REGION"
       value = var.aws_region
+    }
+
+    environment_variable {
+      name  = "ECS_CONTAINER_NAME"
+      value = "fcg-ecs-${each.key}-container"
     }
 
     environment_variable {

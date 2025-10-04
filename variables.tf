@@ -19,15 +19,18 @@ variable "ecs_enable_remote_cmd" {
 }
 
 variable "ecs_task_cpu" {
-  type    = string
-  default = "1024" 
-  # default = "2048"
+  type    = number
+  default = 256
 }
 
 variable "ecs_task_memory" {
+  type    = number
+  default = 512
+}
+
+variable "config_bucket" {
   type    = string
-  default = "2048"
-  # default = "4096"
+  default = "fcg-s3-config"
 }
 
 variable "grafana_admin_password" {
