@@ -31,6 +31,14 @@ resource "aws_ecs_task_definition" "fcg_ecs_task" {
         retries     = 3
         startPeriod = 10
       }
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/fcg-ecs-${each.key}-container"
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
       environment = concat(
         [
           {
@@ -77,6 +85,12 @@ resource "aws_ecs_task_definition" "fcg_ecs_task" {
   ])
 }
 
+resource "aws_cloudwatch_log_group" "container-logs" {
+  for_each          = { for ms in var.microservices_config : ms.key => ms }
+  name              = "/ecs/fcg-ecs-${each.key}-container"
+  retention_in_days = 1
+}
+
 resource "aws_security_group" "ecs_service_sg" {
   name        = "ecs-service-sg-${each.key}"
   for_each      = { for ms in var.microservices_config : ms.key => ms }
@@ -118,6 +132,16 @@ resource "aws_ecs_service" "fcg_service" {
 locals {
   prometheus_container_port = 9090
   prometheus_image          = "prom/prometheus:latest"
+  prometheus_config         = file("${path.module}/prometheus.yml")
+  ecs_container_targets     = jsonencode([
+    for ms in var.microservices_config : {
+      targets = ["${aws_ecs_service.fcg_service[ms.key].name}:${ms.ecs_container_port}"],
+      labels  = {
+        job     = "fcg-ecs-${ms.key}-container",
+        cluster = var.ecs_cluster_name
+      }
+    }
+  ])
 }
 
 resource "aws_ecs_task_definition" "prometheus" {
@@ -140,20 +164,48 @@ resource "aws_ecs_task_definition" "prometheus" {
           hostPort      = local.prometheus_container_port
         }
       ]
-      command = [
-        "sh",
-        "-c",
-        "aws s3 cp s3://${var.config_bucket}/prometheus.yml /etc/prometheus/prometheus.yml && prometheus --config.file=/etc/prometheus/prometheus.yml"
+      environment = [
+        {
+          name  = "PROMETHEUS_CONFIG"
+          value = local.prometheus_config
+        },
+        
+        {
+          name  = "ECS_CONTAINER_TARGETS"
+          value = local.ecs_container_targets
+        }
       ]
+      entryPoint = [
+        "sh", "-c"
+      ]
+      command = [
+        "echo \"$PROMETHEUS_CONFIG\" > /etc/prometheus/prometheus-custom.yml",
+        "echo \"$ECS_CONTAINER_TARGETS\" > /etc/prometheus/ecs-container-targets.json",
+        # "prometheus --config.file=/etc/prometheus/prometheus-custom.yml"
+      ]
+#   # && prometheus --config.file=/etc/prometheus/prometheus-custom.yml
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:${local.prometheus_container_port}/-/healthy || exit 1"]
+        command     = ["CMD-SHELL", "wget --spider -q http://localhost:${local.prometheus_container_port}/-/healthy || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
         startPeriod = 10
       }
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/prometheus"
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
     }
   ])
+}
+
+resource "aws_cloudwatch_log_group" "prometheus" {
+  name              = "/ecs/prometheus"
+  retention_in_days = 1
 }
 
 resource "aws_security_group" "prometheus_sg" {
@@ -182,6 +234,7 @@ resource "aws_ecs_service" "prometheus" {
   task_definition         = aws_ecs_task_definition.prometheus.arn
   desired_count           = 1
   launch_type             = "FARGATE"
+  enable_execute_command  = var.ecs_enable_remote_cmd
 
   network_configuration {
     subnets          = [aws_subnet.public.id]
@@ -228,8 +281,21 @@ resource "aws_ecs_task_definition" "grafana" {
           value = var.grafana_admin_password
         }
       ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/grafana"
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
     }
   ])
+}
+
+resource "aws_cloudwatch_log_group" "grafana" {
+  name              = "/ecs/grafana"
+  retention_in_days = 1
 }
 
 resource "aws_security_group" "grafana_sg" {
@@ -258,6 +324,7 @@ resource "aws_ecs_service" "grafana" {
   task_definition         = aws_ecs_task_definition.grafana.arn
   desired_count           = 1
   launch_type             = "FARGATE"
+  enable_execute_command  = var.ecs_enable_remote_cmd
 
   network_configuration {
     subnets          = [aws_subnet.public.id]

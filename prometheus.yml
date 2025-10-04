@@ -2,10 +2,10 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: 'ecs-tasks'
-    ecs_sd_configs:
-      - region: "${region}"
-        cluster: "${cluster_name}"
+  - job_name: 'ecs-containers'
+    file_sd_configs:
+      - files:
+        - /etc/prometheus/ecs-container-targets.json
     relabel_configs:
       - source_labels: [__meta_ecs_task_definition_family]
         regex: 'fcg-ecs-task-(.*)'
