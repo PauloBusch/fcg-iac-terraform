@@ -4,7 +4,7 @@ variable "microservices_config" {
     opensearch_user      = string
     github_user          = string
     github_repository    = string
-    ecs_container_port   = number
+    eks_container_port   = number
   }))
   default = [
     {
@@ -12,21 +12,21 @@ variable "microservices_config" {
       opensearch_user      = "fcg-games-opensearch-user"
       github_user          = "PauloBusch"
       github_repository    = "fcg-games-microservice"
-      ecs_container_port   = 8080
+      eks_container_port   = 8080
     },
     # {
     #   key                  = "payments"
     #   opensearch_user      = "fcg-payments-opensearch-user"
     #   github_user          = "M4theusVieir4"
     #   github_repository    = "fcg-payment-service"
-    #   ecs_container_port   = 8081
+    #   eks_container_port   = 8081
     # },
     # {
     #   key                  = "catalogs"
     #   opensearch_user      = "fcg-catalogs-opensearch-user"
     #   github_user          = "marceloalvees"
-    #   github_repository    = "tech-challenge-net-phase-3"
-    #   ecs_container_port   = 8082
+    #   github_repository    = "fcg-catalog-microservice"
+    #   eks_container_port   = 8082
     # }
   ]
 }

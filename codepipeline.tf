@@ -41,21 +41,5 @@ resource "aws_codepipeline" "fcg_pipeline" {
       }
     }
   }
-
-  stage {
-    name = "Deploy"
-    action {
-      name             = "Deploy"
-      category         = "Deploy"
-      owner            = "AWS"
-      provider         = "ECS"
-      input_artifacts  = ["build_output"]
-      version          = "1"
-      configuration = {
-        ClusterName         = aws_ecs_cluster.fcg_cluster.name
-        ServiceName         = aws_ecs_service.fcg_service[each.key].name
-        FileName            = "image-definitions.json"
-      }
-    }
-  }
+  
 }

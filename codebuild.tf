@@ -22,11 +22,6 @@ resource "aws_codebuild_project" "fcg_ci" {
     }
 
     environment_variable {
-      name  = "ECS_CONTAINER_NAME"
-      value = "fcg-ecs-${each.key}-container"
-    }
-
-    environment_variable {
       name  = "ECR_REPOSITORY_URI"
       value = aws_ecr_repository.fcg_ecr[each.key].repository_url
     }
