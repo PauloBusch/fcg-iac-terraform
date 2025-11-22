@@ -45,6 +45,36 @@ resource "aws_iam_role_policy_attachment" "codebuild_policy_attach" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
 
+resource "aws_iam_role_policy_attachment" "codebuild_eks_policy" {
+  role       = aws_iam_role.codebuild_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+resource "aws_iam_policy" "codebuild_eks_describe" {
+  name = "CodeBuildEKSEksDescribePolicy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = [
+        "eks:DescribeCluster"
+      ]
+      Resource = "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.eks_cluster_name}"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "codebuild_eks_describe_attach" {
+  role       = aws_iam_role.codebuild_role.name
+  policy_arn = aws_iam_policy.codebuild_eks_describe.arn
+}
+
+resource "aws_iam_role_policy_attachment" "codebuild_secrets_attach" {
+  role       = aws_iam_role.codebuild_role.name
+  policy_arn = "arn:aws:iam::aws:policy/SecretsManagerReadWrite"
+}
+
 resource "aws_iam_role_policy" "codebuild_s3_access" {
   name = "codebuild-s3-access"
   role = aws_iam_role.codebuild_role.id

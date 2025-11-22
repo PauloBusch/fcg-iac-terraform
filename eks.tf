@@ -19,6 +19,16 @@ resource "aws_eks_cluster" "eks" {
   ]
 }
 
+provider "kubernetes" {
+  host                   = aws_eks_cluster.eks.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.eks.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.eks.token
+}
+
+data "aws_eks_cluster_auth" "eks" {
+  name = aws_eks_cluster.eks.name
+}
+
 # Nodes
 resource "aws_eks_node_group" "fcg_nodes" {
   cluster_name    = aws_eks_cluster.eks.name
@@ -44,4 +54,18 @@ resource "aws_eks_node_group" "fcg_nodes" {
     aws_iam_role_policy_attachment.node_AmazonEC2ContainerRegistryReadOnly,
     aws_iam_role_policy_attachment.node_AmazonEKS_CNI_Policy
   ]
+}
+
+#Secrets
+resource "kubernetes_secret" "fcg_elasticsearch" {
+  for_each = { for ms in var.microservices_config : ms.key => ms }
+
+  metadata {
+    name = "fcg-${each.key}-elasticsearch"
+  }
+
+  data = {
+    AccessKey = base64encode(aws_iam_access_key.opensearch_users_access_key[each.key].id)
+    Secret    = base64encode(aws_iam_access_key.opensearch_users_access_key[each.key].secret)
+  }
 }

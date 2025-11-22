@@ -22,6 +22,11 @@ resource "aws_codebuild_project" "fcg_ci" {
     }
 
     environment_variable {
+      name  = "EKS_CLUSTER_NAME"
+      value = var.eks_cluster_name
+    }
+
+    environment_variable {
       name  = "ECR_REPOSITORY_URI"
       value = aws_ecr_repository.fcg_ecr[each.key].repository_url
     }
@@ -32,23 +37,18 @@ resource "aws_codebuild_project" "fcg_ci" {
     }
 
     environment_variable {
-      name  = "ElasticSearchSettings__Endpoint"
+      name  = "OPENSEARCH_ENDPOINT"
       value = "https://${aws_opensearch_domain.fcg.endpoint}"
     }
 
     environment_variable {
-      name  = "ElasticSearchSettings__AccessKey"
+      name  = "OPENSEARCH_ACCESS_KEY"
       value = aws_iam_access_key.opensearch_users_access_key[each.key].id
     }
 
     environment_variable {
-      name  = "ElasticSearchSettings__Secret"
+      name  = "OPENSEARCH_SECRET"
       value = aws_iam_access_key.opensearch_users_access_key[each.key].secret
-    }
-
-    environment_variable {
-      name  = "ElasticSearchSettings__Region"
-      value = var.aws_region
     }
 
     dynamic "environment_variable" {
@@ -56,19 +56,15 @@ resource "aws_codebuild_project" "fcg_ci" {
         contains(keys(aws_sqs_queue.fcg_sqs), each.key)
       ) ? [
       {
-        name  = "AWS__SQS__PaymentsQueueUrl"
+        name  = "SQS_QUEUE_URL"
         value = aws_sqs_queue.fcg_sqs[each.key].url
       },
       {
-        name  = "AWS__SQS__Region"
-        value = var.aws_region
-      },
-      {
-        name  = "AWS__SQS__AccessKey"
+        name  = "SQS_ACCESS_KEY"
         value = aws_iam_access_key.sqs_users_access_key[each.key].id
       },
       {
-        name  = "AWS__SQS__SecretKey"
+        name  = "SQS_SECRET"
         value = aws_iam_access_key.sqs_users_access_key[each.key].secret
       }
       ] : []

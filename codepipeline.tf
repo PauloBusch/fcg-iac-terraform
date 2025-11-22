@@ -42,4 +42,18 @@ resource "aws_codepipeline" "fcg_pipeline" {
     }
   }
   
+  stage {
+    name = "Deploy"
+    action {
+      name            = "DeployToEKS"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts = ["build_output"]
+      version         = "1"
+      configuration = {
+        ProjectName = aws_codebuild_project.fcg_ci[each.key].name
+      }
+    }
+  }
 }
