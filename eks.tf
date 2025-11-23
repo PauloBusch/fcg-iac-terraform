@@ -56,16 +56,41 @@ resource "aws_eks_node_group" "fcg_nodes" {
   ]
 }
 
-#Secrets
-resource "kubernetes_secret" "fcg_elasticsearch" {
+# Secrets
+resource "kubernetes_secret" "fcg_secrets" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
 
   metadata {
-    name = "fcg-${each.key}-elasticsearch"
+    name = "fcg-${each.key}-secrets"
   }
 
-  data = {
-    AccessKey = base64encode(aws_iam_access_key.opensearch_users_access_key[each.key].id)
-    Secret    = base64encode(aws_iam_access_key.opensearch_users_access_key[each.key].secret)
+  data = merge(
+    {
+      ElasticSearchAccessKey = aws_iam_access_key.opensearch_users_access_key[each.key].id
+      ElasticSearchSecret    = aws_iam_access_key.opensearch_users_access_key[each.key].secret
+    },
+    contains(keys(aws_sqs_queue.fcg_sqs), each.key) ? {
+      AwsSqsAccessKey = aws_iam_access_key.sqs_users_access_key[each.key].id
+      AwsSqsSecret     = aws_iam_access_key.sqs_users_access_key[each.key].secret
+    } : {}
+  )
+}
+
+# Config Maps
+resource "kubernetes_secret" "fcg_configmaps" {
+  for_each = { for ms in var.microservices_config : ms.key => ms }
+
+  metadata {
+    name = "fcg-${each.key}-configs"
   }
+
+  data = merge(
+    {
+      ElasticSearchEndpoint = "https://${aws_opensearch_domain.fcg.endpoint}"
+      ElasticSearchRegion   = aws_opensearch_domain.fcg.region
+    },
+    contains(keys(aws_sqs_queue.fcg_sqs), each.key) ? {
+      AwsSqsUrl  = aws_sqs_queue.fcg_sqs[each.key].url
+    } : {}
+  )
 }
