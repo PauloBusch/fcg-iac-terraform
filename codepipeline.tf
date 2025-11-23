@@ -27,30 +27,15 @@ resource "aws_codepipeline" "fcg_pipeline" {
   }
 
   stage {
-    name = "BuildAndTest"
+    name = "BuildTestAndDeploy"
     action {
-      name             = "BuildAndTest"
+      name             = "BuildTestAndDeploy"
       category         = "Build"
       owner            = "AWS"
       provider         = "CodeBuild"
       input_artifacts  = ["source_output"]
       output_artifacts = ["build_output"]
       version          = "1"
-      configuration = {
-        ProjectName = aws_codebuild_project.fcg_ci[each.key].name
-      }
-    }
-  }
-  
-  stage {
-    name = "Deploy"
-    action {
-      name            = "DeployToEKS"
-      category        = "Build"
-      owner           = "AWS"
-      provider        = "CodeBuild"
-      input_artifacts = ["build_output"]
-      version         = "1"
       configuration = {
         ProjectName = aws_codebuild_project.fcg_ci[each.key].name
       }
