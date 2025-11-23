@@ -77,7 +77,7 @@ resource "kubernetes_secret" "fcg_secrets" {
 }
 
 # Config Maps
-resource "kubernetes_secret" "fcg_configmaps" {
+resource "kubernetes_config_map" "fcg_configmaps" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
 
   metadata {
@@ -93,4 +93,31 @@ resource "kubernetes_secret" "fcg_configmaps" {
       AwsSqsUrl  = aws_sqs_queue.fcg_sqs[each.key].url
     } : {}
   )
+}
+
+resource "kubernetes_config_map" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
+  data = {
+    mapRoles = yamlencode([
+      {
+        rolearn  = aws_iam_role.eks_node_role.arn
+        username = "system:node:{{EC2PrivateDNSName}}"
+        groups   = ["system:bootstrappers", "system:nodes"]
+      },
+      {
+        rolearn  = aws_iam_role.eks_cluster_role.arn
+        username = "eks-cluster-role"
+        groups   = ["system:masters"]
+      },
+      {
+        rolearn  = aws_iam_role.codebuild_role.arn
+        username = "codebuild"
+        groups   = ["system:masters"]
+      }
+    ])
+  }
+  depends_on = [aws_eks_cluster.eks]
 }

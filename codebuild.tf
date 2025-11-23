@@ -35,6 +35,54 @@ resource "aws_codebuild_project" "fcg_ci" {
       name  = "ECR_REPOSITORY_DOMAIN"
       value = split("/", aws_ecr_repository.fcg_ecr[each.key].repository_url)[0]
     }
+
+    environment_variable {
+      name  = "ElasticSearchSettings__Endpoint"
+      value = "https://${aws_opensearch_domain.fcg.endpoint}"
+    }
+
+    environment_variable {
+      name  = "ElasticSearchSettings__AccessKey"
+      value = aws_iam_access_key.opensearch_users_access_key[each.key].id
+    }
+
+    environment_variable {
+      name  = "ElasticSearchSettings__Secret"
+      value = aws_iam_access_key.opensearch_users_access_key[each.key].secret
+    }
+
+    environment_variable {
+      name  = "ElasticSearchSettings__Region"
+      value = var.aws_region
+    }
+
+    dynamic "environment_variable" {
+      for_each = (
+        contains(keys(aws_sqs_queue.fcg_sqs), each.key)
+      ) ? [
+      {
+        name  = "AWS__SQS__PaymentsQueueUrl"
+        value = aws_sqs_queue.fcg_sqs[each.key].url
+      },
+      {
+        name  = "AWS__SQS__Region"
+        value = var.aws_region
+      },
+      {
+        name  = "AWS__SQS__AccessKey"
+        value = aws_iam_access_key.sqs_users_access_key[each.key].id
+      },
+      {
+        name  = "AWS__SQS__SecretKey"
+        value = aws_iam_access_key.sqs_users_access_key[each.key].secret
+      }
+      ] : []
+
+      content {
+        name  = environment_variable.value.name
+        value = environment_variable.value.value
+      }
+    }
   }
 
   artifacts {
