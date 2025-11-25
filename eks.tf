@@ -56,12 +56,63 @@ resource "aws_eks_node_group" "fcg_nodes" {
   ]
 }
 
+# Namespaces
+resource "kubernetes_namespace" "fcg_namespaces" {
+  for_each = { for ms in var.microservices_config : ms.key => ms }
+  metadata {
+    name = "fcg-${each.key}"
+  }
+}
+
+# Ingress
+resource "kubernetes_ingress_v1" "fcg_ingress" {
+  for_each = { for ms in var.microservices_config : ms.key => ms }
+
+  metadata {
+    name      = "fcg-${each.key}-ingress"
+    namespace = "fcg-${each.key}"
+    annotations = {
+      "alb.ingress.kubernetes.io/scheme" = "internet-facing"
+    }
+  }
+  spec {
+    ingress_class_name = "fcg-alb"
+    rule {
+      http {
+        path {
+          path      = "/${each.key}"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "fcg-${each.key}-service"
+              port {
+                number = 80
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# ALB (Application Load Balancer)
+resource "kubernetes_ingress_class_v1" "fcg_alb" {
+  metadata {
+    name = "fcg-alb"
+  }
+  spec {
+    controller = "ingress.k8s.aws/alb"
+  }
+}
+
 # Secrets
 resource "kubernetes_secret" "fcg_secrets" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
 
   metadata {
-    name = "fcg-${each.key}-secrets"
+    name      = "fcg-${each.key}-secrets"
+    namespace = "fcg-${each.key}"
   }
 
   data = merge(
@@ -81,7 +132,8 @@ resource "kubernetes_config_map" "fcg_configmaps" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
 
   metadata {
-    name = "fcg-${each.key}-configs"
+    name      = "fcg-${each.key}-configs"
+    namespace = "fcg-${each.key}"
   }
 
   data = merge(

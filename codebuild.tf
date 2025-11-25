@@ -37,6 +37,16 @@ resource "aws_codebuild_project" "fcg_ci" {
     }
 
     environment_variable {
+      name  = "CONTAINER_PORT"
+      value = tostring(each.value.container_port)
+    }
+
+    environment_variable {
+      name  = "SERVICE_PORT"
+      value = tostring(each.value.service_port)
+    }
+
+    environment_variable {
       name  = "ElasticSearchSettings__Endpoint"
       value = "https://${aws_opensearch_domain.fcg.endpoint}"
     }
