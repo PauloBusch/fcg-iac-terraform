@@ -76,7 +76,7 @@ resource "kubernetes_ingress_v1" "fcg_ingress" {
     }
   }
   spec {
-    ingress_class_name = "fcg-alb"
+    ingress_class_name = kubernetes_ingress_class_v1.fcg_alb_ingress_class.metadata[0].name
     rule {
       http {
         path {
@@ -86,7 +86,7 @@ resource "kubernetes_ingress_v1" "fcg_ingress" {
             service {
               name = "fcg-${each.key}-service"
               port {
-                number = 80
+                number = each.value.service_port
               }
             }
           }
@@ -97,13 +97,85 @@ resource "kubernetes_ingress_v1" "fcg_ingress" {
 }
 
 # ALB (Application Load Balancer)
-resource "kubernetes_ingress_class_v1" "fcg_alb" {
+resource "kubernetes_ingress_class_v1" "fcg_alb_ingress_class" {
   metadata {
-    name = "fcg-alb"
+    name = "fcg-alb-ingress-class"
   }
+
   spec {
     controller = "ingress.k8s.aws/alb"
   }
+}
+
+resource "kubernetes_service_account" "fcg_load_balancer_controller" {
+  metadata {
+    name      = "aws-load-balancer-controller"
+    namespace = "kube-system"
+    labels = {
+      "app.kubernetes.io/name" = "aws-load-balancer-controller"
+    }
+  }
+}
+
+resource "kubernetes_cluster_role_binding" "fcg_load_balancer_controller" {
+  metadata {
+    name = "aws-load-balancer-controller"
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "aws-load-balancer-controller"
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.fcg_load_balancer_controller.metadata[0].name
+    namespace = kubernetes_service_account.fcg_load_balancer_controller.metadata[0].namespace
+  }
+}
+
+provider "helm" {
+  kubernetes = {
+    host                   = aws_eks_cluster.eks.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.eks.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.eks.token
+  }
+}
+
+resource "helm_release" "fcg_load_balancer_controller" {
+  name       = "fcg-load-balancer-controller"
+  namespace  = "kube-system"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  version    = "1.7.1"
+
+  set = [
+    {
+      name  = "clusterName"
+      value = aws_eks_cluster.eks.name
+    },
+    {
+      name  = "region"
+      value = var.aws_region
+    },
+    {
+      name  = "vpcId"
+      value = aws_vpc.main.id
+    },
+    {
+      name  = "serviceAccount.create"
+      value = "false"
+    },
+    {
+      name  = "serviceAccount.name"
+      value = kubernetes_service_account.fcg_load_balancer_controller.metadata[0].name
+    }
+  ]
+
+  depends_on = [
+    aws_eks_cluster.eks,
+    kubernetes_service_account.fcg_load_balancer_controller,
+    kubernetes_cluster_role_binding.fcg_load_balancer_controller
+  ]
 }
 
 # Secrets
