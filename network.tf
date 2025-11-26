@@ -26,7 +26,9 @@ resource "aws_subnet" "public_a" {
   availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = true
   tags = {
-    Name = "fcg-public-subnet-a"
+    "Name"                              = "public-a"
+    "kubernetes.io/role/elb"            = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}" = "owned"
   }
 }
 
@@ -36,7 +38,9 @@ resource "aws_subnet" "public_b" {
   availability_zone       = data.aws_availability_zones.available.names[1]
   map_public_ip_on_launch = true
   tags = {
-    Name = "fcg-public-subnet-b"
+    "Name"                              = "public-b"
+    "kubernetes.io/role/elb"            = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}" = "owned"
   }
 }
 
