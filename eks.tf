@@ -75,6 +75,8 @@ resource "kubernetes_ingress_v1" "fcg_ingress" {
       "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
       "alb.ingress.kubernetes.io/target-type" = "ip"
       "alb.ingress.kubernetes.io/subnets"     = join(",", [aws_subnet.public_a.id, aws_subnet.public_b.id])
+      "alb.ingress.kubernetes.io/healthcheck-path" = "/health"
+      "alb.ingress.kubernetes.io/group.name" = "fcg-shared-alb"
     }
   }
   spec {
