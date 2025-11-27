@@ -76,15 +76,14 @@ resource "kubernetes_ingress_v1" "fcg_ingress" {
       "alb.ingress.kubernetes.io/target-type" = "ip"
       "alb.ingress.kubernetes.io/subnets"     = join(",", [aws_subnet.public_a.id, aws_subnet.public_b.id])
       "alb.ingress.kubernetes.io/healthcheck-path" = "/health"
-      "alb.ingress.kubernetes.io/group.name" = "fcg-shared-alb"
     }
   }
   spec {
-    ingress_class_name = kubernetes_ingress_class_v1.fcg_alb_ingress_class.metadata[0].name
+    ingress_class_name = kubernetes_ingress_class_v1.fcg_alb_ingress_class[each.key].metadata[0].name
     rule {
       http {
         path {
-          path      = "/${each.key}"
+          path      = "/"
           path_type = "Prefix"
           backend {
             service {
@@ -170,10 +169,10 @@ resource "kubernetes_config_map" "aws_auth" {
 
 # ALB (Application Load Balancer)
 resource "kubernetes_ingress_class_v1" "fcg_alb_ingress_class" {
+  for_each = { for ms in var.microservices_config : ms.key => ms }
   metadata {
-    name = "fcg-alb-ingress-class"
+    name = "fcg-alb-${each.key}-ingress-class"
   }
-
   spec {
     controller = "ingress.k8s.aws/alb"
   }
