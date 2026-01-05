@@ -5,11 +5,37 @@ Este repositório contém a infraestrutura como código (IaC) para provisionamen
 ## Arquitetura
 Esta arquitetura utiliza um **API Gateway** para integrar os microsserviços de **Jogos**, **Catálogos** e **Pagamentos**, além do **Keycloak** para autenticação. Cada microsserviço acessa seu próprio índice no **OpenSearch**. O microsserviço de Pagamentos processa ordens de forma assíncrona via mensageria (SQS). Todos os microsserviços são implantados em um cluster **EKS** (Kubernetes gerenciado AWS).
 
+- **Rede e Segurança**
+  
+  Roteamento de Tráfego: Utiliza o Amazon Route 53 para gestão de DNS, direcionando o tráfego externo para um Elastic Load Balancer.
+  
+  Segregação de Subnets: O ALB reside em Subnets Públicas, enquanto o cluster EKS, as funções Lambda e as bases de dados estão isolados em Subnets Privadas.
+  
+  Autenticação: O controle de acesso e identidade para os microsserviços é centralizado no Keycloak, rodando dentro do cluster EKS.
+
+- **Microsserviços e Computação**
+  
+  Cluster EKS: Hospeda os microsserviços core da aplicação: Games, Payment e Catalog.
+  
+  Ingress Controller: Gerencia as rotas internas e a entrada de tráfego para os serviços dentro do Kubernetes.
+  
+  Processamento Assíncrono: Funções AWS Lambda processam tarefas de segundo plano, como o envio de notificações.
+
+- **Persistência e Busca**
+  
+  Banco de Dados Relacional: O Amazon RDS é utilizado para dados transacionais dos microsserviços de Pagamentos e Jogos, configurado em múltiplas zonas de disponibilidade para alta disponibilidade.
+  
+  Busca e Observabilidade: O Amazon OpenSearch é alimentado por um Elasticsearch Proxy, sendo utilizado para indexação do catálogo e armazenamento de logs.
+
+- **Mensageria e Notificações**
+  
+  Desacoplamento: O Amazon SQS atua como buffer entre os microsserviços e a camada de notificação, garantindo que nenhum e-mail seja perdido em caso de falhas temporárias.
+  
+  Serviço de E-mail: O Amazon SES é o destino final para o disparo de comunicações transacionais processadas pela Lambda.
 
 O diagrama abaixo ilustra a arquitetura descrita:
 
-![Diagrama de Arquitetura](docs/fcg-architecture-microservices-diagram.drawio.png)
-
+<img width="2119" height="1851" alt="Diagrama - Pós Tech drawio" src="https://github.com/user-attachments/assets/ee4cc2ae-39a0-466e-9eb1-7285b0879cf6" />
 
 ### Repositórios dos Microsserviços
 
