@@ -57,6 +57,12 @@ resource "aws_eks_node_group" "fcg_nodes" {
 }
 
 # Namespaces
+resource "kubernetes_namespace" "keycloak" {
+  metadata {
+    name = "keycloak"
+  }
+}
+
 resource "kubernetes_namespace" "fcg_namespaces" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
   metadata {
@@ -90,6 +96,36 @@ resource "kubernetes_ingress_v1" "fcg_ingress" {
               name = "fcg-${each.key}-service"
               port {
                 number = each.value.service_port
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_ingress_v1" "keycloak_ingress" {
+  metadata {
+    name      = "keycloak-ingress"
+    namespace = kubernetes_namespace.keycloak.metadata[0].name
+    annotations = {
+      "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
+      "alb.ingress.kubernetes.io/target-type" = "ip"
+    }
+  }
+  spec {
+    ingress_class_name = "alb"
+    rule {
+      http {
+        path {
+          path      = "/keycloak/*"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = helm_release.keycloak.name
+              port {
+                number = keycloak_config.ingress_port
               }
             }
           }
@@ -301,4 +337,30 @@ resource "helm_release" "fcg_load_balancer_controller" {
     kubernetes_service_account.fcg_load_balancer_controller,
     kubernetes_cluster_role_binding.fcg_load_balancer_controller
   ]
+}
+
+# Keycloak
+resource "helm_release" "keycloak" {
+  name       = "keycloak"
+  namespace  = kubernetes_namespace.keycloak.metadata[0].name
+  repository = "https://charts.bitnami.com/bitnami"
+  chart      = "keycloak"
+  version    = "19.2.0"
+
+  set {
+    name  = "auth.adminUser"
+    value = keycloak_config.admin_user
+  }
+  set {
+    name  = "auth.adminPassword"
+    value = keycloak_config.admin_password
+  }
+  set {
+    name  = "postgresql.enabled"
+    value = "true"
+  }
+  set {
+    name  = "service.type"
+    value = "ClusterIP"
+  }
 }

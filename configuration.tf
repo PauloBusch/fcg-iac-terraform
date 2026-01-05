@@ -1,3 +1,16 @@
+variable "keycloak_config" {
+  type = object({
+    admin_user     = string
+    admin_password = string
+    ingress_port   = number
+  })
+  default = {
+    admin_user        = "admin"
+    admin_password    = "admin"
+    ingress_port      = 8080
+  }
+}
+
 variable "microservices_config" {
   type = list(object({
     key                  = string
