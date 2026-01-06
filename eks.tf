@@ -57,13 +57,13 @@ resource "aws_eks_node_group" "fcg_nodes" {
 }
 
 # Namespaces
-resource "kubernetes_namespace" "keycloak" {
+resource "kubernetes_namespace_v1" "keycloak" {
   metadata {
     name = "keycloak"
   }
 }
 
-resource "kubernetes_namespace" "fcg_namespaces" {
+resource "kubernetes_namespace_v1" "fcg_namespaces" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
   metadata {
     name = "fcg-${each.key}"
@@ -108,7 +108,7 @@ resource "kubernetes_ingress_v1" "fcg_ingress" {
 resource "kubernetes_ingress_v1" "keycloak_ingress" {
   metadata {
     name      = "keycloak-ingress"
-    namespace = kubernetes_namespace.keycloak.metadata[0].name
+    namespace = kubernetes_namespace_v1.keycloak.metadata[0].name
     annotations = {
       "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
       "alb.ingress.kubernetes.io/target-type" = "ip"
@@ -136,7 +136,7 @@ resource "kubernetes_ingress_v1" "keycloak_ingress" {
 }
 
 # Secrets
-resource "kubernetes_secret" "fcg_secrets" {
+resource "kubernetes_secret_v1" "fcg_secrets" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
 
   metadata {
@@ -157,7 +157,7 @@ resource "kubernetes_secret" "fcg_secrets" {
 }
 
 # Config Maps
-resource "kubernetes_config_map" "fcg_configmaps" {
+resource "kubernetes_config_map_v1" "fcg_configmaps" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
 
   metadata {
@@ -176,7 +176,7 @@ resource "kubernetes_config_map" "fcg_configmaps" {
   )
 }
 
-resource "kubernetes_config_map" "aws_auth" {
+resource "kubernetes_config_map_v1" "aws_auth" {
   metadata {
     name      = "aws-auth"
     namespace = "kube-system"
@@ -214,7 +214,7 @@ resource "kubernetes_ingress_class_v1" "fcg_alb_ingress_class" {
   }
 }
 
-resource "kubernetes_service_account" "fcg_load_balancer_controller" {
+resource "kubernetes_service_account_v1" "fcg_load_balancer_controller" {
   metadata {
     name      = "aws-load-balancer-controller"
     namespace = "kube-system"
@@ -227,7 +227,7 @@ resource "kubernetes_service_account" "fcg_load_balancer_controller" {
   }
 }
 
-resource "kubernetes_cluster_role_binding" "fcg_load_balancer_controller" {
+resource "kubernetes_cluster_role_binding_v1" "fcg_load_balancer_controller" {
   metadata {
     name = "aws-load-balancer-controller"
   }
@@ -238,12 +238,12 @@ resource "kubernetes_cluster_role_binding" "fcg_load_balancer_controller" {
   }
   subject {
     kind      = "ServiceAccount"
-    name      = kubernetes_service_account.fcg_load_balancer_controller.metadata[0].name
-    namespace = kubernetes_service_account.fcg_load_balancer_controller.metadata[0].namespace
+    name      = kubernetes_service_account_v1.fcg_load_balancer_controller.metadata[0].name
+    namespace = kubernetes_service_account_v1.fcg_load_balancer_controller.metadata[0].namespace
   }
 }
 
-resource "kubernetes_cluster_role" "fcg_load_balancer_controller" {
+resource "kubernetes_cluster_role_v1" "fcg_load_balancer_controller" {
   metadata {
     name = "aws-load-balancer-controller"
   }
@@ -328,26 +328,38 @@ resource "helm_release" "fcg_load_balancer_controller" {
     },
     {
       name  = "serviceAccount.name"
-      value = kubernetes_service_account.fcg_load_balancer_controller.metadata[0].name
+      value = kubernetes_service_account_v1.fcg_load_balancer_controller.metadata[0].name
     }
   ]
 
   depends_on = [
     aws_eks_cluster.eks,
-    kubernetes_service_account.fcg_load_balancer_controller,
-    kubernetes_cluster_role_binding.fcg_load_balancer_controller
+    kubernetes_service_account_v1.fcg_load_balancer_controller,
+    kubernetes_cluster_role_binding_v1.fcg_load_balancer_controller
   ]
 }
 
 # Keycloak
 resource "helm_release" "keycloak" {
   name       = "keycloak"
-  namespace  = kubernetes_namespace.keycloak.metadata[0].name
+  namespace  = kubernetes_namespace_v1.keycloak.metadata[0].name
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "keycloak"
   version    = "19.2.0"
 
   set = [
+    {
+      name  = "image.registry"
+      value = "registry.bitnami.com"
+    },
+    {
+      name  = "image.repository"
+      value = "bitnami/keycloak"
+    },
+    {
+      name  = "image.tag"
+      value = "26.3.3-debian-12-r0"
+    },
     {
       name  = "auth.adminUser"
       value = var.keycloak_config.admin_user
@@ -363,6 +375,10 @@ resource "helm_release" "keycloak" {
     {
       name  = "service.type"
       value = "ClusterIP"
+    },
+    {
+      name  = "primary.persistence.storageClass"
+      value = "gp2"
     }
   ]
 }
@@ -373,6 +389,25 @@ resource "helm_release" "metrics_server" {
   repository = "https://kubernetes-sigs.github.io/metrics-server/"
   chart      = "metrics-server"
   namespace  = "kube-system"
+}
+
+resource "helm_release" "aws_ebs_csi_driver" {
+  name       = "aws-ebs-csi-driver"
+  repository = "https://kubernetes-sigs.github.io/aws-ebs-csi-driver"
+  chart      = "aws-ebs-csi-driver"
+  namespace  = "kube-system"
+  version    = "2.30.0" # Use the latest stable version
+
+  set = [
+    {
+      name  = "controller.serviceAccount.create"
+      value = "true"
+    },
+    {
+      name  = "controller.serviceAccount.name"
+      value = "ebs-csi-controller-sa"
+    }
+  ]
 }
 
 resource "helm_release" "monitoring" {
@@ -424,10 +459,25 @@ resource "helm_release" "otel_collector" {
   chart      = "opentelemetry-collector"
   namespace  = "observability"
   create_namespace = true
+
+  set = [
+    {
+      name  = "image.repository"
+      value = "otel/opentelemetry-collector"
+    },
+    {
+      name  = "image.tag"
+      value = "latest"
+    },
+    {
+      name  = "mode"
+      value = "deployment"
+    }
+  ]
 }
 
 # Grafana Dashboard
-resource "kubernetes_config_map" "grafana_dashboard" {
+resource "kubernetes_config_map_v1" "grafana_dashboard" {
   metadata {
     name      = "fcg-microservices-dashboard"
     namespace = "monitoring"
