@@ -364,3 +364,123 @@ resource "helm_release" "keycloak" {
     value = "ClusterIP"
   }
 }
+
+resource "helm_release" "metrics_server" {
+  name       = "metrics-server"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  namespace  = "kube-system"
+}
+
+resource "helm_release" "monitoring" {
+  name       = "kube-prometheus-stack"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "kube-prometheus-stack"
+  namespace  = "monitoring"
+  create_namespace = true
+
+  set {
+    name  = "grafana.adminUser"
+    value = "admin"
+  }
+
+  set {
+    name  = "grafana.adminPassword"
+    value = "admin123"
+  }
+
+  set {
+    name  = "grafana.sidecar.dashboards.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "grafana.sidecar.dashboards.label"
+    value = "grafana_dashboard"
+  }
+
+  set {
+    name  = "grafana.sidecar.datasources.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "grafana.service.type"
+    value = "LoadBalancer"
+  }
+
+  set {
+    name  = "grafana.service.port"
+    value = "80"
+  }
+
+  set {
+    name  = "prometheus.service.type"
+    value = "LoadBalancer"
+  }
+}
+
+resource "helm_release" "otel_collector" {
+  name       = "otel-collector"
+  repository = "https://open-telemetry.github.io/opentelemetry-helm-charts"
+  chart      = "opentelemetry-collector"
+  namespace  = "observability"
+  create_namespace = true
+}
+
+# Grafana Dashboard
+resource "kubernetes_config_map" "grafana_dashboard" {
+  metadata {
+    name      = "fcg-microservices-dashboard"
+    namespace = "monitoring"
+    labels = {
+      grafana_dashboard = "1"
+    }
+  }
+
+  data = {
+    "fcg-microservices.json" = jsonencode({
+      "dashboard" = {
+        "title"   = "FCG Microservices Overview"
+        "tags"    = ["kubernetes", "microservices"]
+        "timezone" = "browser"
+        "panels" = [
+          {
+            "title"  = "CPU Usage by Pod"
+            "type"   = "graph"
+            "gridPos" = { "h" = 8, "w" = 12, "x" = 0, "y" = 0 }
+            "targets" = [{
+              "expr" = "sum(rate(container_cpu_usage_seconds_total{namespace=~\"fcg-.*\"}[5m])) by (pod)"
+            }]
+          },
+          {
+            "title"  = "Memory Usage by Pod"
+            "type"   = "graph"
+            "gridPos" = { "h" = 8, "w" = 12, "x" = 12, "y" = 0 }
+            "targets" = [{
+              "expr" = "sum(container_memory_usage_bytes{namespace=~\"fcg-.*\"}) by (pod)"
+            }]
+          },
+          {
+            "title"  = "Pod Restart Count"
+            "type"   = "graph"
+            "gridPos" = { "h" = 8, "w" = 12, "x" = 0, "y" = 8 }
+            "targets" = [{
+              "expr" = "sum(kube_pod_container_status_restarts_total{namespace=~\"fcg-.*\"}) by (pod)"
+            }]
+          },
+          {
+            "title"  = "Request Rate"
+            "type"   = "graph"
+            "gridPos" = { "h" = 8, "w" = 12, "x" = 12, "y" = 8 }
+            "targets" = [{
+              "expr" = "sum(rate(http_requests_total{namespace=~\"fcg-.*\"}[5m])) by (service)"
+            }]
+          }
+        ]
+      }
+    })
+  }
+
+  depends_on = [helm_release.monitoring]
+}
