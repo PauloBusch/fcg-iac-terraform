@@ -11,6 +11,21 @@ variable "keycloak_config" {
   }
 }
 
+variable "monitoring_config" {
+  type = object({
+    prometheus_port = number
+    grafana_port    = number
+    grafana_admin_user = string
+    grafana_admin_password = string
+  })
+  default = {
+    prometheus_port = 9090
+    grafana_port    = 3000
+    grafana_admin_user = "admin"
+    grafana_admin_password = "admin"
+  }
+}
+
 variable "microservices_config" {
   type = list(object({
     key                  = string
