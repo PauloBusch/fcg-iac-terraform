@@ -125,7 +125,7 @@ resource "kubernetes_ingress_v1" "keycloak_ingress" {
             service {
               name = helm_release.keycloak.name
               port {
-                number = keycloak_config.ingress_port
+                number = var.keycloak_config.ingress_port
               }
             }
           }
@@ -347,24 +347,27 @@ resource "helm_release" "keycloak" {
   chart      = "keycloak"
   version    = "19.2.0"
 
-  set {
-    name  = "auth.adminUser"
-    value = keycloak_config.admin_user
-  }
-  set {
-    name  = "auth.adminPassword"
-    value = keycloak_config.admin_password
-  }
-  set {
-    name  = "postgresql.enabled"
-    value = "true"
-  }
-  set {
-    name  = "service.type"
-    value = "ClusterIP"
-  }
+  set = [
+    {
+      name  = "auth.adminUser"
+      value = var.keycloak_config.admin_user
+    },
+    {
+      name  = "auth.adminPassword"
+      value = var.keycloak_config.admin_password
+    },
+    {
+      name  = "postgresql.enabled"
+      value = "true"
+    },
+    {
+      name  = "service.type"
+      value = "ClusterIP"
+    }
+  ]
 }
 
+# Monitoring Services
 resource "helm_release" "metrics_server" {
   name       = "metrics-server"
   repository = "https://kubernetes-sigs.github.io/metrics-server/"
@@ -379,45 +382,40 @@ resource "helm_release" "monitoring" {
   namespace  = "monitoring"
   create_namespace = true
 
-  set {
-    name  = "grafana.adminUser"
-    value = "admin"
-  }
-
-  set {
-    name  = "grafana.adminPassword"
-    value = "admin123"
-  }
-
-  set {
-    name  = "grafana.sidecar.dashboards.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "grafana.sidecar.dashboards.label"
-    value = "grafana_dashboard"
-  }
-
-  set {
-    name  = "grafana.sidecar.datasources.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "grafana.service.type"
-    value = "LoadBalancer"
-  }
-
-  set {
-    name  = "grafana.service.port"
-    value = "80"
-  }
-
-  set {
-    name  = "prometheus.service.type"
-    value = "LoadBalancer"
-  }
+  set = [
+    {
+      name  = "grafana.adminUser"
+      value = var.monitoring_config.grafana_admin_user
+    },
+    {
+      name  = "grafana.adminPassword"
+      value = var.monitoring_config.grafana_admin_password
+    },
+    {
+      name  = "grafana.sidecar.dashboards.enabled"
+      value = "true"
+    },
+    {
+      name  = "grafana.sidecar.dashboards.label"
+      value = "grafana_dashboard"
+    },
+    {
+      name  = "grafana.sidecar.datasources.enabled"
+      value = "true"
+    },
+    {
+      name  = "grafana.service.type"
+      value = "LoadBalancer"
+    },
+    {
+      name  = "grafana.service.port"
+      value = var.monitoring_config.grafana_port
+    },
+    {
+      name  = "prometheus.service.type"
+      value = "LoadBalancer"
+    }
+  ]
 }
 
 resource "helm_release" "otel_collector" {

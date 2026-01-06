@@ -133,7 +133,7 @@ As variáveis principais estão definidas em [`variables.tf`](variables.tf):
 
 ## Configuração dos Microsserviços
 
-As configurações dinâmicas dos microsserviços estão definidas em [`configuration.tf`](configuration.tf):
+As configurações dinâmicas dos microsserviços, Keycloak e monitoramento estão definidas em [`configuration.tf`](configuration.tf):
 
 - `microservices_config`: Lista de objetos contendo dados de OpenSearch, GitHub, ECR, S3, etc. para cada microsserviço. Cada campo é utilizado para provisionar recursos específicos via Terraform.
    - Exemplo:
@@ -143,9 +143,9 @@ As configurações dinâmicas dos microsserviços estão definidas em [`configur
             key                  = "catalogs"
             opensearch_user      = "fcg-catalogs-opensearch-user"
             github_user          = "marceloalvees"
-            github_repository    = "tech-challenge-net-phase-3"
-            ecr_repository       = "fcg-ecr-catalogs-repository"
-            s3_bucket            = "fcg-s3-catalogs-bucket"
+            github_repository    = "fcg-catalog-microservice"
+            container_port       = 8082
+            service_port         = 82
          }
       ]
       ```
@@ -162,7 +162,29 @@ As configurações dinâmicas dos microsserviços estão definidas em [`configur
       ]
       ```
 
+- `keycloak_config`: Objeto contendo as configurações do serviço de autenticação Keycloak, incluindo usuário e senha do administrador, e porta de exposição via Ingress.
+   - Exemplo:
+      ```hcl
+      keycloak_config = {
+        admin_user     = "admin"
+        admin_password = "admin"
+        ingress_port   = 8080
+      }
+      ```
+   - Por padrão, o Keycloak é provisionado com um banco de dados PostgreSQL interno no cluster EKS (adequado para desenvolvimento). Para produção, recomenda-se configurar um banco externo (ex: Amazon RDS) e ajustar os parâmetros do Helm Chart no Terraform.
 
+- `monitoring_config`: Objeto contendo as configurações de monitoramento, como portas e credenciais do Prometheus e Grafana.
+   - Exemplo:
+      ```hcl
+      monitoring_config = {
+        prometheus_port      = 9090
+        grafana_port         = 3000
+        grafana_admin_user   = "admin"
+        grafana_admin_password = "admin"
+      }
+      ```
+
+Para adicionar um novo microsserviço, configurar Keycloak ou monitoramento, basta incluir ou modificar os objetos nas variáveis de configuração em `configuration.tf`.
 
 ## Observações
 
