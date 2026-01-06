@@ -105,36 +105,6 @@ resource "kubernetes_ingress_v1" "fcg_ingress" {
   }
 }
 
-resource "kubernetes_ingress_v1" "keycloak_ingress" {
-  metadata {
-    name      = "keycloak-ingress"
-    namespace = kubernetes_namespace_v1.keycloak.metadata[0].name
-    annotations = {
-      "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type" = "ip"
-    }
-  }
-  spec {
-    ingress_class_name = "alb"
-    rule {
-      http {
-        path {
-          path      = "/keycloak/*"
-          path_type = "Prefix"
-          backend {
-            service {
-              name = helm_release.keycloak.name
-              port {
-                number = var.keycloak_config.ingress_port
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
 # Secrets
 resource "kubernetes_secret_v1" "fcg_secrets" {
   for_each = { for ms in var.microservices_config : ms.key => ms }
@@ -201,6 +171,73 @@ resource "kubernetes_config_map_v1" "aws_auth" {
     ])
   }
   depends_on = [aws_eks_cluster.eks]
+}
+
+resource "kubernetes_config_map_v1" "grafana_dashboard" {
+  metadata {
+    name      = "fcg-microservices-dashboard"
+    namespace = "monitoring"
+    labels = {
+      grafana_dashboard = "1"
+    }
+  }
+
+  data = {
+    "fcg-microservices.json" = jsonencode({
+      "dashboard" = {
+        "title"   = "FCG Microservices Overview"
+        "tags"    = ["kubernetes", "microservices"]
+        "timezone" = "browser"
+        "panels" = [
+          {
+            "title"  = "CPU Usage by Pod"
+            "type"   = "graph"
+            "gridPos" = { "h" = 8, "w" = 12, "x" = 0, "y" = 0 }
+            "targets" = [{
+              "expr" = "sum(rate(container_cpu_usage_seconds_total{namespace=~\"fcg-.*\"}[5m])) by (pod)"
+            }]
+          },
+          {
+            "title"  = "Memory Usage by Pod"
+            "type"   = "graph"
+            "gridPos" = { "h" = 8, "w" = 12, "x" = 12, "y" = 0 }
+            "targets" = [{
+              "expr" = "sum(container_memory_usage_bytes{namespace=~\"fcg-.*\"}) by (pod)"
+            }]
+          },
+          {
+            "title"  = "Pod Restart Count"
+            "type"   = "graph"
+            "gridPos" = { "h" = 8, "w" = 12, "x" = 0, "y" = 8 }
+            "targets" = [{
+              "expr" = "sum(kube_pod_container_status_restarts_total{namespace=~\"fcg-.*\"}) by (pod)"
+            }]
+          },
+          {
+            "title"  = "Request Rate"
+            "type"   = "graph"
+            "gridPos" = { "h" = 8, "w" = 12, "x" = 12, "y" = 8 }
+            "targets" = [{
+              "expr" = "sum(rate(http_requests_total{namespace=~\"fcg-.*\"}[5m])) by (service)"
+            }]
+          }
+        ]
+      }
+    })
+  }
+
+  depends_on = [helm_release.monitoring]
+}
+
+resource "kubernetes_config_map_v1" "keycloak_realm" {
+  metadata {
+    name      = "keycloak-realm"
+    namespace = "keycloak"
+  }
+
+  data = {
+    "my-realm.json" = file("${path.module}/keycloak-realm.json")
+  }
 }
 
 # ALB (Application Load Balancer)
@@ -345,41 +382,58 @@ resource "helm_release" "keycloak" {
   namespace  = kubernetes_namespace_v1.keycloak.metadata[0].name
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "keycloak"
-  version    = "19.2.0"
 
-  set = [
-    {
-      name  = "image.registry"
-      value = "registry.bitnami.com"
-    },
-    {
-      name  = "image.repository"
-      value = "bitnami/keycloak"
-    },
-    {
-      name  = "image.tag"
-      value = "26.3.3-debian-12-r0"
-    },
-    {
-      name  = "auth.adminUser"
-      value = var.keycloak_config.admin_user
-    },
-    {
-      name  = "auth.adminPassword"
-      value = var.keycloak_config.admin_password
-    },
-    {
-      name  = "postgresql.enabled"
-      value = "true"
-    },
-    {
-      name  = "service.type"
-      value = "ClusterIP"
-    },
-    {
-      name  = "primary.persistence.storageClass"
-      value = "gp2"
+  values = [yamlencode({
+    auth = {
+      adminUser     = var.keycloak_config.admin_user
+      adminPassword = var.keycloak_config.admin_password
     }
+
+    service = {
+      type = "ClusterIP"
+      ports = {
+        http = var.keycloak_config.ingress_port
+      }
+    }
+
+    ingress = {
+      enabled  = true
+      hostname = "keycloak.example.com"
+
+      annotations = {
+        "kubernetes.io/ingress.class"           = "alb"
+        "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
+        "alb.ingress.kubernetes.io/target-type" = "ip"
+      }
+    }
+
+    extraVolumes = [
+      {
+        name = "realm-import"
+        configMap = {
+          name = kubernetes_config_map_v1.keycloak_realm.metadata[0].name
+        }
+      }
+    ]
+
+    extraVolumeMounts = [
+      {
+        name      = "realm-import"
+        mountPath = "/opt/bitnami/keycloak/data/import"
+        readOnly = true
+      }
+    ]
+
+    extraEnvVars = [
+      {
+        name  = "KEYCLOAK_EXTRA_ARGS"
+        value = "--import-realm"
+      }
+    ]
+  })]
+
+  depends_on = [
+    kubernetes_config_map_v1.keycloak_realm
   ]
 }
 
@@ -474,61 +528,4 @@ resource "helm_release" "otel_collector" {
       value = "deployment"
     }
   ]
-}
-
-# Grafana Dashboard
-resource "kubernetes_config_map_v1" "grafana_dashboard" {
-  metadata {
-    name      = "fcg-microservices-dashboard"
-    namespace = "monitoring"
-    labels = {
-      grafana_dashboard = "1"
-    }
-  }
-
-  data = {
-    "fcg-microservices.json" = jsonencode({
-      "dashboard" = {
-        "title"   = "FCG Microservices Overview"
-        "tags"    = ["kubernetes", "microservices"]
-        "timezone" = "browser"
-        "panels" = [
-          {
-            "title"  = "CPU Usage by Pod"
-            "type"   = "graph"
-            "gridPos" = { "h" = 8, "w" = 12, "x" = 0, "y" = 0 }
-            "targets" = [{
-              "expr" = "sum(rate(container_cpu_usage_seconds_total{namespace=~\"fcg-.*\"}[5m])) by (pod)"
-            }]
-          },
-          {
-            "title"  = "Memory Usage by Pod"
-            "type"   = "graph"
-            "gridPos" = { "h" = 8, "w" = 12, "x" = 12, "y" = 0 }
-            "targets" = [{
-              "expr" = "sum(container_memory_usage_bytes{namespace=~\"fcg-.*\"}) by (pod)"
-            }]
-          },
-          {
-            "title"  = "Pod Restart Count"
-            "type"   = "graph"
-            "gridPos" = { "h" = 8, "w" = 12, "x" = 0, "y" = 8 }
-            "targets" = [{
-              "expr" = "sum(kube_pod_container_status_restarts_total{namespace=~\"fcg-.*\"}) by (pod)"
-            }]
-          },
-          {
-            "title"  = "Request Rate"
-            "type"   = "graph"
-            "gridPos" = { "h" = 8, "w" = 12, "x" = 12, "y" = 8 }
-            "targets" = [{
-              "expr" = "sum(rate(http_requests_total{namespace=~\"fcg-.*\"}[5m])) by (service)"
-            }]
-          }
-        ]
-      }
-    })
-  }
-
-  depends_on = [helm_release.monitoring]
 }

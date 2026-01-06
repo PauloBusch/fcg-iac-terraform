@@ -19,17 +19,17 @@ variable "eks_cluster_name" {
 variable "eks_desired_capacity" {
   description = "Desired number of worker nodes"
   type        = number
-  default     = 1 #2
+  default     = 3
 }
 
 variable "eks_min_size" {
   description = "Minimum nodes in node group"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "eks_max_size" {
   description = "Maximum nodes in node group"
   type        = number
-  default     = 1 #3
+  default     = 4
 }

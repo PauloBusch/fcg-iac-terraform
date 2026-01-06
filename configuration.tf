@@ -44,22 +44,22 @@ variable "microservices_config" {
       container_port       = 8080
       service_port         = 80
     },
-    # {
-    #   key                  = "payments"
-    #   opensearch_user      = "fcg-payments-opensearch-user"
-    #   github_user          = "M4theusVieir4"
-    #   github_repository    = "fcg-payment-service"
-    #   container_port       = 8081
-    #   service_port         = 81
-    # },
-    # {
-    #   key                  = "catalogs"
-    #   opensearch_user      = "fcg-catalogs-opensearch-user"
-    #   github_user          = "marceloalvees"
-    #   github_repository    = "fcg-catalog-microservice"
-    #   container_port       = 8082
-    #   service_port         = 82
-    # }
+    {
+      key                  = "payments"
+      opensearch_user      = "fcg-payments-opensearch-user"
+      github_user          = "M4theusVieir4"
+      github_repository    = "fcg-payment-service"
+      container_port       = 8081
+      service_port         = 81
+    },
+    {
+      key                  = "catalogs"
+      opensearch_user      = "fcg-catalogs-opensearch-user"
+      github_user          = "marceloalvees"
+      github_repository    = "fcg-catalog-microservice"
+      container_port       = 8082
+      service_port         = 82
+    }
   ]
 }
 
