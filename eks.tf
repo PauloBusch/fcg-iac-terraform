@@ -501,8 +501,16 @@ resource "helm_release" "monitoring" {
       value = var.monitoring_config.grafana_port
     },
     {
+      name  = "grafana.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
+      value = "internet-facing"
+    },
+    {
       name  = "prometheus.service.type"
       value = "LoadBalancer"
+    },
+    {
+      name  = "prometheus.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
+      value = "internet-facing"
     }
   ]
 }

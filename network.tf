@@ -28,6 +28,7 @@ resource "aws_subnet" "public_a" {
   tags = {
     "Name"                              = "public-a"
     "kubernetes.io/role/elb"            = "1"
+    "kubernetes.io/role/internal-elb"   = "1"
     "kubernetes.io/cluster/${var.eks_cluster_name}" = "owned"
   }
 }
@@ -40,6 +41,7 @@ resource "aws_subnet" "public_b" {
   tags = {
     "Name"                              = "public-b"
     "kubernetes.io/role/elb"            = "1"
+    "kubernetes.io/role/internal-elb"   = "1"
     "kubernetes.io/cluster/${var.eks_cluster_name}" = "owned"
   }
 }
