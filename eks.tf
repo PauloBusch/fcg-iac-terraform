@@ -377,6 +377,7 @@ resource "helm_release" "fcg_load_balancer_controller" {
 }
 
 # Keycloak
+/*
 resource "helm_release" "keycloak" {
   name       = "keycloak"
   namespace  = kubernetes_namespace_v1.keycloak.metadata[0].name
@@ -436,6 +437,7 @@ resource "helm_release" "keycloak" {
     kubernetes_config_map_v1.keycloak_realm
   ]
 }
+*/
 
 # Monitoring Services
 resource "helm_release" "metrics_server" {
@@ -536,4 +538,37 @@ resource "helm_release" "otel_collector" {
       value = "deployment"
     }
   ]
+}
+
+resource "kubernetes_manifest" "fcg_servicemonitor" {
+  for_each = { for ms in var.microservices_config : ms.key => ms }
+  manifest = {
+    apiVersion = "monitoring.coreos.com/v1"
+    kind       = "ServiceMonitor"
+    metadata = {
+      name      = "fcg-${each.key}-servicemonitor"
+      namespace = "monitoring"
+      labels = {
+        release = helm_release.monitoring.name
+      }
+    }
+    spec = {
+      selector = {
+        matchLabels = {
+          app = "fcg-${each.key}"
+        }
+      }
+      namespaceSelector = {
+        matchNames = ["fcg-${each.key}"]
+      }
+      endpoints = [
+        {
+          port = "http"
+          path = "/metrics"
+          interval = "30s"
+        }
+      ]
+    }
+  }
+  depends_on = [helm_release.monitoring]
 }
